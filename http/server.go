@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"net/http"
 	"os"
+	"strconv"
 )
 
 type Post struct {
@@ -19,18 +20,14 @@ type PostData struct {
 	Posts []Post `json:"posts"`
 }
 
+var dataFile string = "./posts.json"
 var posts []Post
-
-func Hello(w http.ResponseWriter, req *http.Request) {
-	fmt.Fprintf(w, "HELLO\n")
-}
 
 func readPostsFromFile() {
 	if len(posts) > 0 {
 		return
 	}
 
-	dataFile := "./posts.json"
 	dat, err := os.ReadFile(dataFile)
 	if err != nil {
 		panic(err)
@@ -41,6 +38,17 @@ func readPostsFromFile() {
 		panic(err)
 	}
 	posts = append(posts, jsonData.Posts...)
+}
+
+func writePostsToFile() {
+	dataJson, jsonErr := json.MarshalIndent(posts, "", "  ")
+	if jsonErr != nil {
+		panic(jsonErr)
+	}
+	writeErr := os.WriteFile(dataFile, dataJson, 0644)
+	if writeErr != nil {
+		panic(writeErr)
+	}
 }
 
 func GetIndex(w http.ResponseWriter, req *http.Request) {
@@ -56,7 +64,7 @@ func GetIndex(w http.ResponseWriter, req *http.Request) {
 }
 
 func GetPost(w http.ResponseWriter, req *http.Request) {
-	fmt.Println("post", req.PathValue("id"))
+	fmt.Println("GET post", req.PathValue("id"))
 	tmpl, err := template.ParseFiles("http/templates/post.html")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -71,4 +79,33 @@ func GetPost(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 	}
+}
+
+func SubmitPost(w http.ResponseWriter, req *http.Request) {
+	fmt.Println("POST post")
+	tmpl, err := template.ParseFiles("http/templates/submit-post.html")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if req.Method != http.MethodPost {
+		tmpl.Execute(w, nil)
+		return
+	}
+
+	post := Post{
+		Title:   req.FormValue("title"),
+		Summary: req.FormValue("summary"),
+		Body:    req.FormValue("body"),
+		ID:      strconv.Itoa(len(posts)),
+	}
+	posts = append(posts, post)
+
+	writePostsToFile()
+	tmpl.Execute(w, struct{ Success bool }{true})
+}
+
+func Hello(w http.ResponseWriter, req *http.Request) {
+	fmt.Fprintf(w, "HELLO, WORLD\n")
 }
