@@ -1,10 +1,14 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
-    <title>{{.Title}}</title>
+    <title>My blog</title>
   </head>
+
   <body>
-    <h1>{{.Title}}</h1>
-    <p>{{.Body}}</p>
+    <ul>
+      {{ range . }}
+      <li><a href="/post/{{.ID}}">{{ .Title }}</a></li>
+      {{ end }}
+    </ul>
   </body>
 </html>
