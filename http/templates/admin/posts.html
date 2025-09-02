@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>My blog | Admin</title>
+  </head>
+  <body>
+    <ul>
+      {{ range . }}
+      <li><a href="/editor/posts/{{.ID}}">{{ .Title }}</a></li>
+      {{ end }}
+    </ul>
+  </body>
+</html>

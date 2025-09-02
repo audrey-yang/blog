@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>My blog | Admin</title>
+  </head>
+  <body>
+    <h1>Make a new post</h1>
+    <form method="POST">
+      <label>Title:</label><br />
+      <input type="text" name="title" value="{{.Title}}" /><br />
+      <label>Summary:</label><br />
+      <input type="text" name="summary" value="{{.Summary}}" /><br />
+      <label>Body:</label><br />
+      <textarea name="body" cols="80" rows="10">{{.Body}}</textarea><br />
+      <input type="submit" />
+    </form>
+  </body>
+</html>

@@ -11,9 +11,10 @@ func main() {
 
 	mux.HandleFunc("/post/{id}", server.GetPost)
 	mux.HandleFunc("/editor/post", server.SubmitPost)
+	mux.HandleFunc("/editor/post/{id}", server.EditPost)
 	mux.HandleFunc("/hello", server.Hello)
 
-	mux.HandleFunc("/", server.GetIndex)
+	mux.HandleFunc("/", server.GetIndexPage)
 
 	fmt.Println("Listening...")
 	if err := http.ListenAndServe(":8090", mux); err != nil {
