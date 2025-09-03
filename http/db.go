@@ -9,6 +9,13 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+type Post struct {
+	ID      int
+	Title   string
+	Summary string
+	Body    string
+}
+
 var conn *pgx.Conn
 var ctx = context.Background()
 
@@ -26,17 +33,10 @@ func InitDb() {
 	fmt.Println("Connected to PostgreSQL database!")
 }
 
-type Post struct {
-	ID      int
-	Title   string
-	Summary string
-	Body    string
-}
-
 func GetAllPosts() ([]Post, error) {
 	sql := `
         SELECT id, title, summary, body
-        FROM blog_posts
+        FROM posts
 		ORDER BY updated_at DESC
     `
 	rows, err := conn.Query(ctx, sql)
@@ -66,7 +66,7 @@ func GetAllPosts() ([]Post, error) {
 func GetPostById(id int) (Post, error) {
 	sql := `
         SELECT id, title, summary, body 
-        FROM blog_posts
+        FROM posts
         WHERE id = $1
     `
 	var post Post
@@ -89,7 +89,7 @@ func AddPost(
 	body string,
 ) error {
 	sql := `
-        INSERT INTO blog_posts (title, summary, body)
+        INSERT INTO posts (title, summary, body)
         VALUES ($1, $2, $3)
         RETURNING id
     `
@@ -105,7 +105,7 @@ func AddPost(
 
 func UpdatePost(updatedPost Post) error {
 	sql := `
-        UPDATE blog_posts
+        UPDATE posts
         SET title = $2, summary = $3, body = $4
         WHERE id = $1
     `
