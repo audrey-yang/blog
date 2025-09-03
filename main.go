@@ -7,6 +7,7 @@ import (
 )
 
 func main() {
+	server.InitDb()
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/post/{id}", server.GetPost)

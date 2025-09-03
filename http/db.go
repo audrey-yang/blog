@@ -1,79 +1,123 @@
 package http
 
 import (
-	"encoding/json"
-	"errors"
+	"context"
+	"fmt"
+	"log"
 	"os"
-	"strconv"
+
+	"github.com/jackc/pgx/v5"
 )
 
+var conn *pgx.Conn
+var ctx = context.Background()
+
+func InitDb() {
+	var err error
+	conn, err = pgx.Connect(ctx, os.Getenv("DATABASE_URL"))
+	if err != nil {
+		log.Fatal("Unable to connect to database:", err)
+	}
+
+	if err := conn.Ping(ctx); err != nil {
+		log.Fatal("Unable to ping database:", err)
+	}
+
+	fmt.Println("Connected to PostgreSQL database!")
+}
+
 type Post struct {
-	ID      string `json:"id"`
-	Title   string `json:"title"`
-	Summary string `json:"summary"`
-	Body    string `json:"body"`
+	ID      int
+	Title   string
+	Summary string
+	Body    string
 }
 
-type PostData struct {
-	Posts []Post
-}
-
-var dataFile string = "./posts.json"
-var posts []Post
-
-func GetPosts() []Post {
-	if len(posts) > 0 {
-		return posts
+func GetAllPosts() ([]Post, error) {
+	sql := `
+        SELECT id, title, summary, body
+        FROM blog_posts
+		ORDER BY updated_at DESC
+    `
+	rows, err := conn.Query(ctx, sql)
+	if err != nil {
+		return nil, fmt.Errorf("error querying Posts: %w", err)
 	}
-	return readPostsFromFile()
-}
+	defer rows.Close()
 
-func GetPostById(id string) (Post, error) {
-	posts := GetPosts()
-	for _, post := range posts {
-		if post.ID == id {
-			return post, nil
+	var posts []Post
+	for rows.Next() {
+		var post Post
+		err := rows.Scan(
+			&post.ID,
+			&post.Title,
+			&post.Summary,
+			&post.Body,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning Post row: %w", err)
 		}
+		posts = append(posts, post)
 	}
-	return Post{}, errors.New("could not find Post")
+
+	return posts, nil
 }
 
-func AddPost(newPost Post) {
-	posts = append(posts, newPost)
-	writePostsToFile()
-}
-
-func UpdatePost(updatedPost Post) {
-	posts := GetPosts()
-	ind, err := strconv.Atoi(updatedPost.ID)
+func GetPostById(id int) (Post, error) {
+	sql := `
+        SELECT id, title, summary, body 
+        FROM blog_posts
+        WHERE id = $1
+    `
+	var post Post
+	err := conn.QueryRow(ctx, sql, id).Scan(
+		&post.ID,
+		&post.Title,
+		&post.Summary,
+		&post.Body,
+	)
 	if err != nil {
-		return
+		return Post{}, fmt.Errorf("error querying Post: %w", err)
 	}
-	posts[ind-1] = updatedPost
-	writePostsToFile()
+
+	return post, nil
 }
 
-func readPostsFromFile() []Post {
-	dat, err := os.ReadFile(dataFile)
+func AddPost(
+	title string,
+	summary string,
+	body string,
+) error {
+	sql := `
+        INSERT INTO blog_posts (title, summary, body)
+        VALUES ($1, $2, $3)
+        RETURNING id
+    `
+
+	var id int
+	err := conn.QueryRow(ctx, sql, title, summary, body).Scan(&id)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("error creating Post: %w", err)
 	}
 
-	var jsonData PostData
-	if err := json.Unmarshal(dat, &jsonData); err != nil {
-		panic(err)
-	}
-	posts = append(posts, jsonData.Posts...)
-	return posts
+	return nil
 }
 
-func writePostsToFile() {
-	dataJson, jsonErr := json.MarshalIndent(PostData{posts}, "", "  ")
-	if jsonErr != nil {
-		panic(jsonErr)
+func UpdatePost(updatedPost Post) error {
+	sql := `
+        UPDATE blog_posts
+        SET title = $2, summary = $3, body = $4
+        WHERE id = $1
+    `
+
+	commandTag, err := conn.Exec(ctx, sql, updatedPost.ID, updatedPost.Title, updatedPost.Summary, updatedPost.Body)
+	if err != nil {
+		return fmt.Errorf("error completing Post: %w", err)
 	}
-	writeErr := os.WriteFile(dataFile, dataJson, 0644)
-	if writeErr != nil {
-		panic(writeErr)
+
+	if commandTag.RowsAffected() == 0 {
+		return fmt.Errorf("no Post found with id %d", updatedPost.ID)
 	}
+
+	return nil
 }

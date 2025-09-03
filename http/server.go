@@ -7,72 +7,62 @@ import (
 	"strconv"
 )
 
-func GetIndexPage(w http.ResponseWriter, req *http.Request) {
-	fmt.Println("index")
-	tmpl, err := template.ParseFiles("http/templates/index.html")
+func check(err error, w http.ResponseWriter) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
 
-	posts := GetPosts()
+func GetIndexPage(w http.ResponseWriter, req *http.Request) {
+	fmt.Println("GET index")
+	tmpl, err := template.ParseFiles("http/templates/index.html")
+	check(err, w)
+
+	posts, err := GetAllPosts()
+	check(err, w)
+
 	tmpl.Execute(w, posts)
 }
 
 func GetPost(w http.ResponseWriter, req *http.Request) {
 	fmt.Println("GET post", req.PathValue("id"))
 	tmpl, err := template.ParseFiles("http/templates/post.html")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	check(err, w)
 
-	id := req.PathValue("id")
+	idArg := req.PathValue("id")
+	id, err := strconv.Atoi(idArg)
+	check(err, w)
 	post, err := GetPostById(id)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	check(err, w)
+
 	tmpl.Execute(w, post)
 }
 
 func SubmitPost(w http.ResponseWriter, req *http.Request) {
 	fmt.Println("POST post")
 	tmpl, err := template.ParseFiles("http/templates/admin/submit-post.html")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	check(err, w)
 
 	if req.Method != http.MethodPost {
 		tmpl.Execute(w, nil)
 		return
 	}
 
-	post := Post{
-		Title:   req.FormValue("title"),
-		Summary: req.FormValue("summary"),
-		Body:    req.FormValue("body"),
-		ID:      strconv.Itoa(len(posts)),
-	}
-	AddPost(post)
+	AddPost(req.FormValue("title"), req.FormValue("summary"), req.FormValue("body"))
 	tmpl.Execute(w, struct{ Success bool }{true})
 }
 
 func EditPost(w http.ResponseWriter, req *http.Request) {
 	fmt.Println("UPDATE post")
 	tmpl, err := template.ParseFiles("http/templates/admin/submit-post.html")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	check(err, w)
 
-	id := req.PathValue("id")
+	idArg := req.PathValue("id")
+	id, err := strconv.Atoi(idArg)
+	check(err, w)
 	ogPost, err := GetPostById(id)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	check(err, w)
 
 	if req.Method != http.MethodPost {
 		tmpl.Execute(w, ogPost)
@@ -83,7 +73,7 @@ func EditPost(w http.ResponseWriter, req *http.Request) {
 		Title:   req.FormValue("title"),
 		Summary: req.FormValue("summary"),
 		Body:    req.FormValue("body"),
-		ID:      strconv.Itoa(len(posts)),
+		ID:      id,
 	}
 	UpdatePost(post)
 	tmpl.Execute(w, struct{ Success bool }{true})
